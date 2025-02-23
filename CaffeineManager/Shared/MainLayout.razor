@@ -1,53 +1,87 @@
-﻿@inherits LayoutComponentBase
+﻿@using System.Globalization
+@inherits LayoutComponentBase
+@inject NavigationManager NavigationManager
 
-<MApp>
-    <MAppBar App>
-        <MAppBarNavIcon @onclick="() => _drawer = !_drawer"></MAppBarNavIcon>
-        <MToolbarTitle>CaffeineManager</MToolbarTitle>
-        <MSpacer></MSpacer>
-        <MButton Text Color="primary" Target="_blank" Href="https://docs.masastack.com/blazor/introduction/why-masa-blazor">About</MButton>
-    </MAppBar>
-
-    <MNavigationDrawer App @bind-Value="_drawer">
+<MApp Id="app" Class="*:font-sans w-full h-screen overflow-hidden transition-all">
+    <MNavigationDrawer App Permanent Width="300" Floating
+                       Class="border-r border-solid border-gray-200 [&:has(.theme--dark)]:border-gray-700 [&:has(.theme--dark)]:bg-[--m-theme-dark-surface] bg-[--m-theme-surface] p-4 transition-all">
+        <div class="text-xl text-center font-bold py-4">@NavTitle</div>
         <MList Nav Routable>
-            <MListItem Href="/" ActiveClass="primary--text">
-                <MListItemIcon>
-                    <MIcon>mdi-home</MIcon>
-                </MListItemIcon>
-                <MListItemContent>
-                    <MListItemTitle>Home</MListItemTitle>
-                </MListItemContent>
-            </MListItem>
-            <MListItem Href="/counter" ActiveClass="primary--text">
-                <MListItemIcon>
-                    <MIcon>mdi-plus</MIcon>
-                </MListItemIcon>
-                <MListItemContent>
-                    <MListItemTitle>Counter</MListItemTitle>
-                </MListItemContent>
-            </MListItem>
-            <MListItem Href="/fetchdata" ActiveClass="primary--text">
-                <MListItemIcon>
-                    <MIcon>mdi-list-box</MIcon>
-                </MListItemIcon>
-                <MListItemContent>
-                    <MListItemTitle>Fetch data</MListItemTitle>
-                </MListItemContent>
-            </MListItem>
+            @foreach (var item in _routePathDefinitions)
+            {
+                <MListItem Href="@item.Path" ActiveClass="primary--text" Exact>
+                    @if (!string.IsNullOrEmpty(item.Icon))
+                    {
+                        <MIcon Class="text-xl mr-2">@item.Icon</MIcon>
+                    }
+                    <MListItemContent>
+                        <MListItemTitle>@item.Name</MListItemTitle>
+                    </MListItemContent>
+                </MListItem>
+            }
         </MList>
     </MNavigationDrawer>
 
-    <MMain>
-        <MContainer Fluid>
+    <div class="flex flex-col">
+        <MAppBar App Elevation="0"
+                 Class="border-b border-solid bg-[--m-theme-surface] border-gray-200 [&:has(.theme--dark)]:border-gray-700 [&:has(.theme--dark)]:bg-[--m-theme-dark-surface] [&:not(.app--sized)]:left-[300px!important] transition-all">
+            <div class="flex!">
+                @if (!string.IsNullOrEmpty(_barIcon))
+                {
+                    <MIcon Class="text-2xl mr-2 font-bold">@_barIcon</MIcon>
+                }
+                <MToolbarTitle>@_barTitle</MToolbarTitle>
+            </div>
+
+        </MAppBar>
+
+        <MMain Class="[&:not(.app--sized)]:pl-[300px!important] h-[calc(100vh-64px)]">
             <MErrorHandler>
                 @Body
             </MErrorHandler>
-        </MContainer>
-    </MMain>
+        </MMain>
+    </div>
 </MApp>
 
 @code {
 
-    private bool? _drawer;
+    private class RouteItem
+    {
+        public required string Path { get; init; }
+        public required string Name { get; set; }
+        public string? Icon { get; init; }
+    }
+
+    [CascadingParameter(Name = "Culture")] public string? Culture { get; set; }
+    private const string? NavTitle = "NagareSubtitle Test";
+    private string? _barIcon, _barTitle;
+
+    private readonly List<RouteItem> _routePathDefinitions =
+    [
+        new() { Path = "/", Name = "首页", Icon = "mdi-home" },
+        new() { Path = "/counter", Name = "计数器", Icon = "mdi-plus" },
+        new() { Path = "/coffee", Name = "咖啡管理", Icon = "mdi-plus" },
+    ];
+
+    protected override void OnInitialized()
+    {
+        UpdateBarInfo();
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        UpdateBarInfo();
+    }
+
+    private void UpdateBarInfo()
+    {
+        var realUri = NavigationManager.Uri[(NavigationManager.BaseUri.Length - 1)..];
+        var routeObj = _routePathDefinitions.FirstOrDefault(x => x.Path == realUri);
+        if (routeObj is null) return;
+        _barIcon = routeObj.Icon;
+        _barTitle = routeObj.Name;
+        StateHasChanged();
+    }
 
 }

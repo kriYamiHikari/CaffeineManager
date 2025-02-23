@@ -8,5 +8,8 @@ export default defineConfig({
         presetWind3({
             important: true
         })
-    ]
+    ],
+    shortcuts: {
+        'custom-default-masa-btn': 'tracking-normal h-auto normal-case indent-0 py-2'
+    }
 })
