@@ -8,6 +8,7 @@
 
     <ItemGroup>
         <PackageReference Include="Masa.Blazor" Version="1.8.4" />
+        <PackageReference Include="SqlSugarCore" Version="5.1.4.179-preview06" />
     </ItemGroup>
 
     <Target Name="PreBuild" BeforeTargets="PreBuildEvent">

@@ -2,6 +2,8 @@
 @inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 
+<PageTitle>咖啡管理</PageTitle>
+
 <MApp Id="app" Class="*:font-sans w-full h-screen overflow-hidden transition-all">
     <MNavigationDrawer App Permanent Width="300" Floating
                        Class="border-r border-solid border-gray-200 [&:has(.theme--dark)]:border-gray-700 [&:has(.theme--dark)]:bg-[--m-theme-dark-surface] bg-[--m-theme-surface] p-4 transition-all">
@@ -48,19 +50,18 @@
     private class RouteItem
     {
         public required string Path { get; init; }
-        public required string Name { get; set; }
+        public required string Name { get; init; }
         public string? Icon { get; init; }
     }
 
     [CascadingParameter(Name = "Culture")] public string? Culture { get; set; }
-    private const string? NavTitle = "NagareSubtitle Test";
+    private const string? NavTitle = "咖啡管理系统";
     private string? _barIcon, _barTitle;
 
     private readonly List<RouteItem> _routePathDefinitions =
     [
         new() { Path = "/", Name = "首页", Icon = "mdi-home" },
-        new() { Path = "/counter", Name = "计数器", Icon = "mdi-plus" },
-        new() { Path = "/coffee", Name = "咖啡管理", Icon = "mdi-plus" },
+        new() { Path = "/caffeine-management", Name = "咖啡管理", Icon = "mdi-coffee" },
     ];
 
     protected override void OnInitialized()

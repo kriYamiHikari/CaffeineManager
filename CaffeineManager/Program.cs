@@ -1,4 +1,5 @@
-using CaffeineManager.Data;
+using CaffeineManager.Model;
+using SqlSugar;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,7 +7,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddMasaBlazor();
-builder.Services.AddSingleton<WeatherForecastService>();
+builder.Services.AddScoped<ISqlSugarClient>(s =>
+{
+    var sqlSugar = new SqlSugarClient(new ConnectionConfig
+    {
+        DbType = DbType.Sqlite,
+        ConnectionString = "DataSource=O:\\CoffeeData3.db",
+        IsAutoCloseConnection = true,
+    });
+    return sqlSugar;
+});
+
 
 var app = builder.Build();
 
@@ -26,5 +37,12 @@ app.UseRouting();
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
+// 自动建表
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
+    db.CodeFirst.InitTables<Coffee>();
+}
 
 app.Run();

@@ -1,0 +1,120 @@
+﻿@page "/caffeine-management"
+@using System.ComponentModel.DataAnnotations
+@using CaffeineManager.Model
+@inject ISqlSugarClient Db
+@inject IPopupService PopupService
+
+<div class="p-5">
+    <MDialog MaxWidth="600" @bind-Value="_addDataDialogVisible" Persistent>
+        <ActivatorContent>
+            <MButton Class="custom-default-masa-btn" Elevation="0" @attributes="@context.Attrs">添加数据</MButton>
+        </ActivatorContent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>添加数据</MCardTitle>
+                <MCardText>
+                    <MForm @ref="_addDataForm" Model="_coffeeFormModel" AutoLabel OnValidSubmit="AddCoffeeData"
+                           ValidateOn="ValidateOn.Blur">
+                        <MTextField @bind-Value="_coffeeFormModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.Name" Placeholder="请输入名称" Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MContainer>
+                            <MRow>
+                                <MSpacer></MSpacer>
+                                <MButton Text OnClick="ResetCoffeeForm">取消</MButton>
+                                <MButton Text Type="submit">提交</MButton>
+                            </MRow>
+                        </MContainer>
+                    </MForm>
+                </MCardText>
+            </MCard>
+        </ChildContent>
+    </MDialog>
+    <MDataTable Headers="_tableHeaders" Items="_coffeeData" @ref="_coffeeDataTable">
+        <ItemColContent>
+            @switch (context.Header.Value)
+            {
+                case "index":
+                    var indexNum = _coffeeData.IndexOf(context.Item) + 1;
+                    <span>@indexNum</span>
+                    break;
+                default:
+                    @context.Value
+                    break;
+            }
+        </ItemColContent>
+    </MDataTable>
+</div>
+
+@code {
+
+    private List<DataTableHeader<Coffee>> _tableHeaders =
+    [
+        new() { Text = "#", Value = "index" },
+        new() { Text = "品牌", Value = nameof(Coffee.Brand) },
+        new() { Text = "名称", Value = nameof(Coffee.Name) },
+        new() { Text = "最小咖啡因", Value = nameof(Coffee.MinCaffeine) },
+        new() { Text = "最大咖啡因", Value = nameof(Coffee.MaxCaffeine) },
+    ];
+
+    private class CoffeeFormModel
+    {
+        [Required(ErrorMessage = "请输入品牌！")]
+        [Display(Name = "品牌")]
+        public string? Brand { get; set; }
+
+        [Required(ErrorMessage = "请输入名称！")]
+        [Display(Name = "名称")]
+        public string? Name { get; set; }
+
+        [Display(Name = "最小咖啡因")] public decimal MinCaffeine { get; set; }
+        [Display(Name = "最大咖啡因")] public decimal MaxCaffeine { get; set; }
+    }
+
+    private List<Coffee> _coffeeData = [];
+    private MForm? _addDataForm;
+    private MDataTable<Coffee> _coffeeDataTable;
+    private bool _addDataDialogVisible;
+    private CoffeeFormModel _coffeeFormModel = new();
+
+    protected override void OnInitialized()
+    {
+        _ = GetCoffeeData();
+    }
+
+    private void ResetCoffeeForm()
+    {
+        _addDataForm!.Reset();
+        if (_addDataDialogVisible)
+        {
+            _addDataDialogVisible = false;
+        }
+    }
+
+    private async Task GetCoffeeData()
+    {
+        var query = Db.Queryable<Coffee>();
+        _coffeeData = await query.ToListAsync();
+    }
+
+    private async Task AddCoffeeData()
+    {
+        var obj = new Coffee
+        {
+            Brand = _coffeeFormModel.Brand,
+            Name = _coffeeFormModel.Name,
+            MinCaffeine = _coffeeFormModel.MinCaffeine,
+            MaxCaffeine = _coffeeFormModel.MaxCaffeine
+        };
+        await Db.Insertable(obj).ExecuteCommandAsync();
+        ResetCoffeeForm();
+        _ = PopupService.EnqueueSnackbarAsync("添加成功!", AlertTypes.Success, true, 3000);
+        await GetCoffeeData();
+    }
+
+}
