@@ -35,7 +35,31 @@
             </MCard>
         </ChildContent>
     </MDialog>
-    <MDataTable Headers="_tableHeaders" Items="_coffeeData" @ref="_coffeeDataTable">
+    <MDialog MaxWidth="300" @bind-Value="_deleteDataDialogVisible" Persistent>
+        <ActivatorContent>
+            <MButton Class="custom-default-masa-btn" Elevation="0" @attributes="@context.Attrs">删除数据</MButton>
+        </ActivatorContent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>确认删除</MCardTitle>
+                <MCardText>
+                    <div>您确定要删除数据吗？</div>
+                </MCardText>
+                <MCardActions>
+                    <MSpacer></MSpacer>
+                    <MButton Text OnClick="@(() =>
+                                           {
+                                               _deleteDataDialogVisible = false;
+                                               _singleDeleteId = null;
+                                           })">取消
+                    </MButton>
+                    <MButton Text OnClick="HandleDeleteDialogConfirm">确认</MButton>
+                </MCardActions>
+            </MCard>
+        </ChildContent>
+    </MDialog>
+    <MDataTable Headers="_tableHeaders" Items="_coffeeData" @ref="_coffeeDataTable" ShowSelect
+                ItemKey="@(item => item.Id.ToString())" @bind-Selected="_selectedCoffeeItems">
         <ItemColContent>
             @switch (context.Header.Value)
             {
@@ -46,6 +70,17 @@
                 default:
                     @context.Value
                     break;
+                case "action":
+                    <div>
+                        <MIcon Class="cursor-pointer" OnClick="@(() =>
+                                                               {
+                                                                   _singleDeleteId = context.Item.Id;
+                                                                   _deleteDataDialogVisible = true;
+                                                               })">
+                            mdi-delete
+                        </MIcon>
+                    </div>
+                    break;
             }
         </ItemColContent>
     </MDataTable>
@@ -55,11 +90,12 @@
 
     private List<DataTableHeader<Coffee>> _tableHeaders =
     [
-        new() { Text = "#", Value = "index" },
+        new() { Text = "#", Value = "index", Width = 60 },
         new() { Text = "品牌", Value = nameof(Coffee.Brand) },
         new() { Text = "名称", Value = nameof(Coffee.Name) },
         new() { Text = "最小咖啡因", Value = nameof(Coffee.MinCaffeine) },
         new() { Text = "最大咖啡因", Value = nameof(Coffee.MaxCaffeine) },
+        new() { Text = "其他操作", Value = "action", Width = 100 }
     ];
 
     private class CoffeeFormModel
@@ -78,8 +114,11 @@
 
     private List<Coffee> _coffeeData = [];
     private MForm? _addDataForm;
-    private MDataTable<Coffee> _coffeeDataTable;
+    private MDataTable<Coffee>? _coffeeDataTable;
     private bool _addDataDialogVisible;
+    private bool _deleteDataDialogVisible;
+    private IEnumerable<string> _selectedCoffeeItems = [];
+    private int? _singleDeleteId;
     private CoffeeFormModel _coffeeFormModel = new();
 
     protected override void OnInitialized()
@@ -114,6 +153,37 @@
         await Db.Insertable(obj).ExecuteCommandAsync();
         ResetCoffeeForm();
         _ = PopupService.EnqueueSnackbarAsync("添加成功!", AlertTypes.Success, true, 3000);
+        await GetCoffeeData();
+    }
+
+    private async Task HandleDeleteDialogConfirm()
+    {
+        if (_singleDeleteId == null)
+        {
+            var ids = _selectedCoffeeItems.Select(int.Parse).ToArray();
+            await DeleteCoffeeData(ids);
+            _deleteDataDialogVisible = false;
+            _selectedCoffeeItems = [];
+        }
+        else
+        {
+            var list = _selectedCoffeeItems.ToList();
+            list.RemoveAll(x=>x == _singleDeleteId.Value.ToString());
+            _selectedCoffeeItems = list;
+            await DeleteCoffeeData([_singleDeleteId.Value]);
+            _deleteDataDialogVisible = false;
+            _singleDeleteId = null;
+        }
+    }
+
+    private async Task DeleteCoffeeData(int[] ids)
+    {
+        if (ids.Length != 0)
+        {
+            await Db.Deleteable<Coffee>().Where(x => ids.Contains(x.Id)).ExecuteCommandAsync();
+        }
+
+        _ = PopupService.EnqueueSnackbarAsync($"删除成功! 已成功删除 {ids.Length} 条数据！", AlertTypes.Success, true, 3000);
         await GetCoffeeData();
     }
 
