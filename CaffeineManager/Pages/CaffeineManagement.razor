@@ -5,6 +5,33 @@
 @inject IPopupService PopupService
 
 <div class="p-5">
+    <MDialog MaxWidth="600" @bind-Value="_updateDataDialogVisible" Persistent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>添加数据</MCardTitle>
+                <MCardText>
+                    <MForm @ref="_updateDataForm" Model="_coffeeFormModel" AutoLabel OnValidSubmit="UpdateCoffeeData"
+                           ValidateOn="ValidateOn.Blur">
+                        <MTextField @bind-Value="_coffeeFormModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.Name" Placeholder="请输入名称" Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_coffeeFormModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MContainer>
+                            <MRow>
+                                <MSpacer></MSpacer>
+                                <MButton Text OnClick="ResetCoffeeForm">取消</MButton>
+                                <MButton Text Type="submit">提交</MButton>
+                            </MRow>
+                        </MContainer>
+                    </MForm>
+                </MCardText>
+            </MCard>
+        </ChildContent>
+    </MDialog>
     <MDialog MaxWidth="600" @bind-Value="_addDataDialogVisible" Persistent>
         <ActivatorContent>
             <MButton Class="custom-default-masa-btn" Elevation="0" @attributes="@context.Attrs">添加数据</MButton>
@@ -58,8 +85,9 @@
             </MCard>
         </ChildContent>
     </MDialog>
-    <MDataTable Headers="_tableHeaders" Items="_coffeeData" @ref="_coffeeDataTable" ShowSelect
-                ItemKey="@(item => item.Id.ToString())" @bind-Selected="_selectedCoffeeItems">
+    <MDataTable Headers="_tableHeaders" Items="_coffeeData" ShowSelect
+                ItemKey="@(item => item.Id.ToString())" @bind-Selected="_selectedCoffeeItems"
+                ResizeMode="DataTableResizeMode.Independent">
         <ItemColContent>
             @switch (context.Header.Value)
             {
@@ -79,6 +107,19 @@
                                                                })">
                             mdi-delete
                         </MIcon>
+                        <MIcon Class="cursor-pointer" OnClick="@(() =>
+                                                               {
+                                                                   _coffeeFormModel = new CoffeeFormModel
+                                                                   {
+                                                                       Id = context.Item.Id,
+                                                                       Brand = context.Item.Brand,
+                                                                       Name = context.Item.Name,
+                                                                       MinCaffeine = context.Item.MinCaffeine ?? 0,
+                                                                       MaxCaffeine = context.Item.MaxCaffeine ?? 0
+                                                                   };
+                                                                   _updateDataDialogVisible = true;
+                                                               })">mdi-pencil
+                        </MIcon>
                     </div>
                     break;
             }
@@ -88,7 +129,7 @@
 
 @code {
 
-    private List<DataTableHeader<Coffee>> _tableHeaders =
+    private readonly List<DataTableHeader<Coffee>> _tableHeaders =
     [
         new() { Text = "#", Value = "index", Width = 60 },
         new() { Text = "品牌", Value = nameof(Coffee.Brand) },
@@ -98,8 +139,10 @@
         new() { Text = "其他操作", Value = "action", Width = 100 }
     ];
 
-    private class CoffeeFormModel
+    public class CoffeeFormModel
     {
+        public int Id { get; init; }
+
         [Required(ErrorMessage = "请输入品牌！")]
         [Display(Name = "品牌")]
         public string? Brand { get; set; }
@@ -114,8 +157,9 @@
 
     private List<Coffee> _coffeeData = [];
     private MForm? _addDataForm;
-    private MDataTable<Coffee>? _coffeeDataTable;
+    private MForm? _updateDataForm;
     private bool _addDataDialogVisible;
+    private bool _updateDataDialogVisible;
     private bool _deleteDataDialogVisible;
     private IEnumerable<string> _selectedCoffeeItems = [];
     private int? _singleDeleteId;
@@ -128,10 +172,16 @@
 
     private void ResetCoffeeForm()
     {
-        _addDataForm!.Reset();
+        _addDataForm?.Reset();
+        _updateDataForm?.Reset();
         if (_addDataDialogVisible)
         {
             _addDataDialogVisible = false;
+        }
+
+        if (_updateDataDialogVisible)
+        {
+            _updateDataDialogVisible = false;
         }
     }
 
@@ -168,7 +218,7 @@
         else
         {
             var list = _selectedCoffeeItems.ToList();
-            list.RemoveAll(x=>x == _singleDeleteId.Value.ToString());
+            list.RemoveAll(x => x == _singleDeleteId.Value.ToString());
             _selectedCoffeeItems = list;
             await DeleteCoffeeData([_singleDeleteId.Value]);
             _deleteDataDialogVisible = false;
@@ -185,6 +235,24 @@
 
         _ = PopupService.EnqueueSnackbarAsync($"删除成功! 已成功删除 {ids.Length} 条数据！", AlertTypes.Success, true, 3000);
         await GetCoffeeData();
+    }
+
+    private async Task UpdateCoffeeData()
+    {
+        var updateObj = new Coffee
+        {
+            Id = _coffeeFormModel.Id
+        };
+        Db.Tracking(updateObj);
+        updateObj.Brand = _coffeeFormModel.Brand;
+        updateObj.Name = _coffeeFormModel.Name;
+        updateObj.MinCaffeine = _coffeeFormModel.MinCaffeine;
+        updateObj.MaxCaffeine = _coffeeFormModel.MaxCaffeine;
+        await Db.Updateable(updateObj).ExecuteCommandAsync();
+        Db.ClearTracking();
+        ResetCoffeeForm();
+        await GetCoffeeData();
+        await PopupService.EnqueueSnackbarAsync("数据更新成功！", AlertTypes.Success, true, 3000);
     }
 
 }
