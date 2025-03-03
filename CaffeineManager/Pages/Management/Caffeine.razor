@@ -1,4 +1,4 @@
-﻿@page "/caffeine-management"
+﻿@page "/management/caffeine"
 @using System.ComponentModel.DataAnnotations
 @using CaffeineManager.Model
 @inject ISqlSugarClient Db
@@ -109,25 +109,11 @@
                 case "action":
                     <div>
                         <MIcon Class="cursor-pointer" OnClick="@(() =>
-                                                               {
-                                                                   _singleDeleteId = context.Item.Id;
-                                                                   _deleteDataDialogVisible = true;
-                                                               })">
+                                                                   HandleSingleDeleteDialogEvent(context.Item.Id))">
                             mdi-delete
                         </MIcon>
-                        <MIcon Class="cursor-pointer" OnClick="@(() =>
-                                                               {
-                                                                   _formModel = new CoffeeFormModel
-                                                                   {
-                                                                       Id = context.Item.Id,
-                                                                       Brand = context.Item.Brand,
-                                                                       Name = context.Item.Name,
-                                                                       ItemType = context.Item.ItemType?.Id,
-                                                                       MinCaffeine = context.Item.MinCaffeine ?? 0,
-                                                                       MaxCaffeine = context.Item.MaxCaffeine ?? 0
-                                                                   };
-                                                                   _updateDataDialogVisible = true;
-                                                               })">mdi-pencil
+                        <MIcon Class="cursor-pointer" OnClick="@(() => HandleUpdateDialogEvent(context.Item))">
+                            mdi-pencil
                         </MIcon>
                     </div>
                     break;
@@ -246,6 +232,26 @@
             _deleteDataDialogVisible = false;
             _singleDeleteId = null;
         }
+    }
+
+    private void HandleSingleDeleteDialogEvent(int id)
+    {
+        _singleDeleteId = id;
+        _deleteDataDialogVisible = true;
+    }
+
+    private void HandleUpdateDialogEvent(Coffee item)
+    {
+        _formModel = new CoffeeFormModel
+        {
+            Id = item.Id,
+            Brand = item.Brand,
+            Name = item.Name,
+            ItemType = item.ItemType?.Id,
+            MinCaffeine = item.MinCaffeine ?? 0,
+            MaxCaffeine = item.MaxCaffeine ?? 0
+        };
+        _updateDataDialogVisible = true;
     }
 
     private async Task DeleteData(int[] ids)
