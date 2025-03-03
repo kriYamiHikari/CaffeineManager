@@ -9,7 +9,7 @@
     <MDialog MaxWidth="600" @bind-Value="_updateDataDialogVisible" Persistent>
         <ChildContent>
             <MCard>
-                <MCardTitle>添加数据</MCardTitle>
+                <MCardTitle>更新数据</MCardTitle>
                 <MCardText>
                     <MForm @ref="_updateDataForm" Model="_formModel" AutoLabel OnValidSubmit="UpdateData"
                            ValidateOn="ValidateOn.Blur">
@@ -199,8 +199,13 @@
         if (_singleDeleteId == null)
         {
             var ids = _selectedItems.Select(int.Parse).ToArray();
-            await DeleteData(ids);
             _deleteDataDialogVisible = false;
+            if (ids.Length == 0)
+            {
+                await PopupService.EnqueueSnackbarAsync("未选择数据", AlertTypes.Warning, true, 3000);
+                return;
+            }
+            await DeleteData(ids);
             _selectedItems = [];
         }
         else
