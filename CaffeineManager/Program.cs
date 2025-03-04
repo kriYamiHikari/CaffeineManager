@@ -12,7 +12,7 @@ builder.Services.AddScoped<ISqlSugarClient>(s =>
     var sqlSugar = new SqlSugarClient(new ConnectionConfig
     {
         DbType = DbType.Sqlite,
-        ConnectionString = "DataSource=O:\\CoffeeData3.db",
+        ConnectionString = "DataSource=CoffeeData.db",
         IsAutoCloseConnection = true,
     });
     return sqlSugar;
