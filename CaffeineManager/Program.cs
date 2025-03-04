@@ -42,7 +42,7 @@ app.MapFallbackToPage("/_Host");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ISqlSugarClient>();
-    db.CodeFirst.InitTables<Coffee, ItemType>();
+    db.CodeFirst.InitTables<CaffeineData, ItemType, CaffeineGuide>();
 }
 
 app.Run();

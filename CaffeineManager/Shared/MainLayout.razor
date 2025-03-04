@@ -1,5 +1,4 @@
-﻿@using System.Globalization
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
 
 <PageTitle>咖啡管理</PageTitle>
@@ -55,13 +54,15 @@
     }
 
     [CascadingParameter(Name = "Culture")] public string? Culture { get; set; }
-    private const string? NavTitle = "咖啡管理系统";
+    private const string? NavTitle = "咖啡因评估系统";
     private string? _barIcon, _barTitle;
 
     private readonly List<RouteItem> _routePathDefinitions =
     [
         new() { Path = "/", Name = "首页", Icon = "mdi-home" },
-        new() { Path = "/management/caffeine", Name = "咖啡管理", Icon = "mdi-coffee" },
+        new() { Path = "/management/drink-data", Name = "饮品数据管理", Icon = "mdi-database" },
+        new() { Path = "/management/drink-type", Name = "饮品类型管理", Icon = "mdi-format-list-bulleted-type" },
+        new() { Path = "/management/guide", Name = "评估指南管理", Icon = "mdi-book-information-variant" },
     ];
 
     protected override void OnInitialized()

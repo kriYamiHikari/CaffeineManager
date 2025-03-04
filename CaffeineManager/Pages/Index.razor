@@ -1,3 +1,454 @@
 ﻿@page "/"
+@using CaffeineManager.Model
+@inject ISqlSugarClient Db
 
-<h1>Hello, world!</h1>
+<div class="p-5 overflow-y-auto h-[calc(100vh-64px)]">
+    <div class="flex flex-col items-center mb-4">
+        <div class="text-2xl font-bold">咖啡因摄入量指南：给每一个喜欢咖啡的你</div>
+        <div class="text-gray-4 text-sm">咖啡，是很多人生活中不可或缺的快乐源泉。</div>
+        <div class="text-gray-4 text-sm">但当你端起那杯香浓的咖啡时，有没有想过，咖啡因的摄入量其实也有“红线”呢？</div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <MCard Class="rounded-md! h-700px shadow-gray-200 shadow-md border">
+                <MCardTitle>选择数据</MCardTitle>
+                <MCardText Class="h-full">
+                    <MDialog Value="_selectDrinkDialogVisible" Persistent Width="800"
+                             ValueChanged="@(value => HandleSelectDrinkDialogVisibleChanged(value))">
+                        <ActivatorContent>
+                            <MButton @attributes="@context.Attrs">选择饮品</MButton>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MCard>
+                                <MCardTitle>
+                                    <MContainer Class="flex">
+                                        <div>选择饮品</div>
+                                        <MSpacer></MSpacer>
+                                        <MButton Icon OnClick="HandleSelectDrinkDialogCancel">
+                                            <MIcon>mdi-close-circle-outline</MIcon>
+                                        </MButton>
+                                    </MContainer>
+                                </MCardTitle>
+                                <MCardText Class="h-600px pb-0">
+                                    <MContainer Class="h-full">
+                                        <MRow Class="h-full">
+                                            <MCol Class="overflow-y-auto h-full" Cols="4">
+                                                <MList>
+                                                    <MListItemGroup @bind-Value="_itemTypeSelected" Mandatory>
+                                                        @foreach (var item in _itemTypesData)
+                                                        {
+                                                            <MListItem @key="@item.Id"
+                                                                       OnClick="@(() => HandleItemTypeChanged(item.Id))">
+                                                                @item.Text
+                                                            </MListItem>
+                                                        }
+                                                    </MListItemGroup>
+                                                </MList>
+                                            </MCol>
+                                            <MCol Class="overflow-y-auto h-full" Cols="8">
+                                                @if (_drinkData.Count > 0)
+                                                {
+                                                    foreach (var item in _drinkData)
+                                                    {
+                                                        <div>
+                                                            @{
+                                                                var selectedObj = _selectedList.FirstOrDefault(x => x.Id == item.Id);
+                                                                <div class="flex items-center">
+                                                                    <MCheckbox Disabled="@selectedObj!.IsDisabled"
+                                                                               @bind-Value="@selectedObj.IsSelected"></MCheckbox>
+                                                                    <div>
+                                                                        <div class="text-md font-bold">@item.Brand</div>
+                                                                        <div class="text-sm">@item.Name</div>
+                                                                    </div>
+                                                                    <MSpacer></MSpacer>
+                                                                    <div>@item.MinCaffeine mg / @item.MaxCaffeine mg
+                                                                    </div>
+                                                                </div>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                            </MCol>
+                                        </MRow>
+                                    </MContainer>
+                                </MCardText>
+                                <MCardActions Class="justify-end">
+                                    <MButton Text OnClick="HandleSelectDrinkDialogReset">重置</MButton>
+                                    <MButton Text OnClick="HandleSelectDrinkDialogConfirm">提交</MButton>
+                                </MCardActions>
+                            </MCard>
+                        </ChildContent>
+                    </MDialog>
+
+                    <MButton Class="ml-2" OnClick="CalcFinalCaffeineResult">开始计算</MButton>
+                    <MDivider Class="mt-6"></MDivider>
+
+                    <div class="h-70% overflow-y-auto">
+                        @if (_drinkCalcItemsList.Count > 0)
+                        {
+                            foreach (var item in _drinkCalcItemsList)
+                            {
+                                <MContainer Class="pt-0">
+                                    <MContainer Class="flex items-center">
+                                        <div>
+                                            <div class="text-lg font-bold">@item.CalcItem!.Brand</div>
+                                            <div>@item.CalcItem.MinCaffeine mg / @item.CalcItem.MaxCaffeine mg</div>
+                                            <div>@item.CalcItem.Name</div>
+                                        </div>
+                                        <MSpacer></MSpacer>
+                                        <div>
+                                            <MTextField Type="number" @bind-Value="@item.ItemCount" Label="数量"
+                                                        Class="pt-10"
+                                                        NumberProps="@(prop => { prop.Step = 1m; })"></MTextField>
+                                        </div>
+                                        <MButton Icon Class="mt-2"
+                                                 OnClick="@(() => { HandleSingleDrinkCalcItemsDelete(item); })">
+                                            <MIcon>mdi-trash-can</MIcon>
+                                        </MButton>
+                                    </MContainer>
+                                    <MDivider></MDivider>
+                                </MContainer>
+                            }
+                        }
+                    </div>
+                </MCardText>
+            </MCard>
+        </div>
+        <div class="grid grid-rows-2 gap-4">
+            <div>
+                <MCard Class="h-full shadow-gray-200 shadow-md border rounded-md!">
+                    <MCardTitle>评估结果</MCardTitle>
+                    <MCardText>
+                        <div class="grid grid-cols-2">
+                            <div>
+                                <MECharts Option="_echartOption" Width="360" Height="360"></MECharts>
+                            </div>
+                            <div class="flex justify-center pb-14 flex-col px-8">
+                                <div class="text-center font-bold text-2xl">@_guideLabel</div>
+                                <div class="my-3">@_guideConclusion</div>
+                                <div>tips: @_guideAdvice</div>
+                            </div>
+                        </div>
+
+                    </MCardText>
+                </MCard>
+            </div>
+            <div>
+                <MCard Class="h-full shadow-gray-200 shadow-md border rounded-md!">
+                    <MCardTitle>咖啡因小科普</MCardTitle>
+                    <MCardText Class="px-8">
+                        <MAlert Text Dense Color="teal" Icon="@("mdi-information")" Border="Borders.Left">
+                            咖啡因并不是洪水猛兽，关键在于适量摄人，每个人都有适合自己的咖啡因剂量，听从身体的声音，找到最适合自己的“快乐剂量”，才能真正享受咖啡带来的美好时光。
+                        </MAlert>
+                        <div>
+                            <div class="text-lg font-bold">为什么咖啡因让人精神焕发？</div>
+                            <div>它会拮抗腺苷受体，阻碍大脑中的“疲劳信号”传递，同时刺激多巴胺和肾上腺素的分泌。</div>
+                        </div>
+                        <MDivider Class="my-4"></MDivider>
+                        <div>
+                            <div class="text-lg font-bold">咖啡因真的会上瘾吗？</div>
+                            <div>虽然没有确凿的证据证明咖啡因会导致生理成瘾，但心理依赖是存在的。</div>
+                        </div>
+                        <MDivider Class="my-4"></MDivider>
+                        <div>
+                            <div class="text-lg font-bold">长期适量饮用的好处？</div>
+                            <div>研究显示，适量咖啡因可能降低二型糖尿病和慢性肝病的风险。</div>
+                        </div>
+                    </MCardText>
+                </MCard>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code{
+    private List<ItemType> _itemTypesData = [];
+    private List<CaffeineData> _drinkData = [];
+    private StringNumber _itemTypeSelected = 0;
+    private List<DrinkTypeSelected> _selectedList = [];
+    private readonly List<int> _realSelectedDrinkId = [];
+    private bool _selectDrinkDialogVisible;
+    private readonly List<DrinkCalcItem> _drinkCalcItemsList = [];
+
+    private object _echartOption = GetNewChartOptions();
+    private string _guideLabel = "暂无数据";
+    private string _guideConclusion = "请先计算";
+    private string _guideAdvice = "";
+
+    public class DrinkTypeSelected
+    {
+        public int Id { get; init; }
+        public bool IsSelected { get; set; }
+        public bool IsDisabled { get; set; }
+    }
+
+    public class DrinkCalcItem
+    {
+        public CaffeineData? CalcItem { get; init; }
+        public int ItemCount { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetData();
+        await HandleItemTypeChanged(1, true);
+    }
+
+    private async Task GetData()
+    {
+        _itemTypesData = await Db.Queryable<ItemType>().ToListAsync();
+    }
+
+    private async Task<List<CaffeineData>> GetDrinkDataByType(int typeId)
+    {
+        return await Db.Queryable<CaffeineData>().Where(x => x.Type == typeId).ToListAsync();
+    }
+
+    private async Task HandleSelectDrinkDialogCancel()
+    {
+        _selectDrinkDialogVisible = false;
+        await HandleSelectDrinkDialogReset();
+    }
+
+    private async Task HandleSelectDrinkDialogReset()
+    {
+        foreach (var num in _realSelectedDrinkId.ToList().Where(num => _drinkCalcItemsList.All(x => x.CalcItem!.Id != num)))
+        {
+            _realSelectedDrinkId.Remove(num);
+        }
+
+        await HandleItemTypeChanged(_itemTypesData[(int)_itemTypeSelected].Id, true);
+    }
+
+    private async Task HandleSelectDrinkDialogConfirm()
+    {
+        if (_selectedList.Count > 0)
+        {
+            foreach (var item in _selectedList)
+            {
+                if (!_realSelectedDrinkId.Contains(item.Id) && item.IsSelected)
+                {
+                    _realSelectedDrinkId.Add(item.Id);
+                }
+            }
+        }
+
+        if (_realSelectedDrinkId.Count > 0)
+        {
+            foreach (var numId in _realSelectedDrinkId)
+            {
+                if (_drinkCalcItemsList.Any(x => x.CalcItem!.Id == numId)) continue;
+                {
+                    var obj = await Db.Queryable<CaffeineData>().Where(x => x.Id == numId).FirstAsync();
+                    _drinkCalcItemsList.Add(new DrinkCalcItem
+                    {
+                        CalcItem = obj,
+                        ItemCount = 1
+                    });
+                }
+            }
+        }
+
+        await HandleSelectDrinkDialogCancel();
+    }
+
+    private async Task HandleSelectDrinkDialogVisibleChanged(bool visible)
+    {
+        if (visible)
+        {
+            await HandleItemTypeChanged(_itemTypesData[(int)_itemTypeSelected].Id, true);
+        }
+
+        _selectDrinkDialogVisible = visible;
+    }
+
+    private void HandleSingleDrinkCalcItemsDelete(DrinkCalcItem item)
+    {
+        if (_realSelectedDrinkId.Contains(item.CalcItem!.Id))
+        {
+            _realSelectedDrinkId.Remove(item.CalcItem.Id);
+        }
+
+        _drinkCalcItemsList.Remove(item);
+    }
+
+    private async Task HandleItemTypeChanged(int id, bool firstRead = false)
+    {
+        if (firstRead)
+        {
+            _drinkData = await GetDrinkDataByType(id);
+            _selectedList = _drinkData.Select(x => new DrinkTypeSelected { Id = x.Id, IsSelected = false }).ToList();
+
+            if (_drinkCalcItemsList.Count > 0)
+            {
+                foreach (var item in _drinkCalcItemsList)
+                {
+                    _realSelectedDrinkId.Add(item.CalcItem!.Id);
+                    var obj = _selectedList.FirstOrDefault(x => x.Id == item.CalcItem.Id);
+
+                    if (obj == null) continue;
+                    obj.IsSelected = true;
+                    obj.IsDisabled = true;
+                }
+            }
+
+            return;
+        }
+
+        if (_itemTypesData[(int)_itemTypeSelected].Id != id)
+        {
+            if (_selectedList.Count > 0)
+            {
+                foreach (var item in _selectedList)
+                {
+                    if (item.IsDisabled)
+                    {
+                        continue;
+                    }
+
+                    if (!_realSelectedDrinkId.Contains(item.Id) && item.IsSelected)
+                    {
+                        _realSelectedDrinkId.Add(item.Id);
+                    }
+
+                    if (_realSelectedDrinkId.Contains(item.Id) && !item.IsSelected)
+                    {
+                        _realSelectedDrinkId.Remove(item.Id);
+                    }
+                }
+            }
+
+            _drinkData = await GetDrinkDataByType(id);
+            _selectedList = _drinkData.Select(x => new DrinkTypeSelected { Id = x.Id, IsSelected = false }).ToList();
+
+            if (_drinkCalcItemsList.Count > 0)
+            {
+                foreach (var item in _drinkCalcItemsList)
+                {
+                    _realSelectedDrinkId.Add(item.CalcItem!.Id);
+                    var obj = _selectedList.FirstOrDefault(x => x.Id == item.CalcItem.Id);
+
+                    if (obj == null) continue;
+                    obj.IsSelected = true;
+                    obj.IsDisabled = true;
+                }
+            }
+
+            if (_realSelectedDrinkId.Count > 0)
+            {
+                foreach (var num in _realSelectedDrinkId.Where(num => _selectedList.Any(x => x.Id == num)))
+                {
+                    _selectedList.First(x => x.Id == num).IsSelected = true;
+                }
+            }
+        }
+    }
+
+    private async Task CalcFinalCaffeineResult()
+    {
+        if (_drinkCalcItemsList.Count > 0)
+        {
+            var totalCaffeine = _drinkCalcItemsList.Sum(item => (item.CalcItem!.MinCaffeine.GetValueOrDefault(0) + item.CalcItem.MaxCaffeine.GetValueOrDefault(0)) / 2 * item.ItemCount);
+            var guideMaxTotalCaffeine = Db.Queryable<CaffeineGuide>().Max(x => x.RangeStart);
+            var value = (int)Math.Round((decimal)(totalCaffeine / guideMaxTotalCaffeine * 100)!);
+            var valueGuideObj = await Db.Queryable<CaffeineGuide>().Where(x => x.RangeStart <= totalCaffeine && x.RangeEnd > totalCaffeine).FirstAsync();
+            if (valueGuideObj != null)
+            {
+                _guideLabel = valueGuideObj.Label!;
+                _guideConclusion = valueGuideObj.Conclusion!;
+                _guideAdvice = valueGuideObj.Advice!;
+            }
+
+            _echartOption = GetNewChartOptions($"{totalCaffeine}mg/d", value);
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static object GetNewChartOptions(string detailText = "0mg/d", int dataValue = 0)
+    {
+        return new
+        {
+            series = new[]
+            {
+                new
+                {
+                    type = "gauge",
+                    startAngle = 90,
+                    endAngle = -270,
+                    pointer = new
+                    {
+                        show = false
+                    },
+                    progress = new
+                    {
+                        show = true,
+                        overlap = false,
+                        roundCap = true,
+                        clip = false,
+                        itemStyle = new
+                        {
+                            borderWidth = 0,
+                            borderColor = "#464646"
+                        }
+                    },
+                    axisLine = new
+                    {
+                        lineStyle = new
+                        {
+                            width = 40
+                        }
+                    },
+                    splitLine = new
+                    {
+                        show = false,
+                        distance = 0,
+                        length = 10
+                    },
+                    axisTick = new
+                    {
+                        show = false
+                    },
+                    axisLabel = new
+                    {
+                        show = false,
+                        distance = 50
+                    },
+                    data = new[]
+                    {
+                        new
+                        {
+                            value = dataValue,
+                            name = "咖啡因含量",
+                            title = new
+                            {
+                                fontSize = 20,
+                                offsetCenter = new[] { "0%", "-10%" }
+                            },
+                            detail = new
+                            {
+                                valueAnimation = true,
+                                offsetCenter = new[] { "0%", "14%" }
+                            }
+                        }
+                    },
+                    title = new
+                    {
+                        fontSize = 14
+                    },
+                    detail = new
+                    {
+                        height = 18,
+                        fontSize = 12,
+                        color = "inherit",
+                        borderColor = "inherit",
+                        borderRadius = 20,
+                        borderWidth = 1,
+                        formatter = detailText
+                    }
+                }
+            }
+        };
+    }
+
+}

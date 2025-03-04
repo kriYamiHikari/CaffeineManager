@@ -1,11 +1,10 @@
-﻿@page "/management/caffeine"
+﻿@page "/management/guide"
 @using CaffeineManager.Model
 @using CaffeineManager.Model.Form
 @inject ISqlSugarClient Db
 @inject IPopupService PopupService
 
 <div class="p-5">
-    <MButton OnClick="TestFunction">test</MButton>
     <MDialog MaxWidth="600" @bind-Value="_updateDataDialogVisible" Persistent>
         <ChildContent>
             <MCard>
@@ -13,16 +12,16 @@
                 <MCardText>
                     <MForm @ref="_updateDataForm" Model="_formModel" AutoLabel OnValidSubmit="UpdateData"
                            ValidateOn="ValidateOn.Blur">
-                        <MTextField @bind-Value="_formModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
-                        <MTextField @bind-Value="_formModel.Name" Placeholder="请输入名称" Outlined></MTextField>
-                        <MSelect @bind-Value="_formModel.ItemType" Outlined Items="@_itemTypesData"
-                                 ItemText="@(x => x.Text ?? "")" ItemValue="@(x => x.Id)"></MSelect>
-                        <MTextField @bind-Value="_formModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                        <MTextField @bind-Value="_formModel.RangeStart" Placeholder="请输入起始评估范围"
                                     Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
                                     Outlined></MTextField>
-                        <MTextField @bind-Value="_formModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                        <MTextField @bind-Value="_formModel.RangeEnd" Placeholder="请输入结束评估范围"
                                     Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
                                     Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Label" Placeholder="请输入评估标签" Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Conclusion" Placeholder="请输入评估结论"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Advice" Placeholder="请输入评估建议" Outlined></MTextField>
                         <MContainer>
                             <MRow>
                                 <MSpacer></MSpacer>
@@ -45,16 +44,16 @@
                 <MCardText>
                     <MForm @ref="_addDataForm" Model="_formModel" AutoLabel OnValidSubmit="AddData"
                            ValidateOn="ValidateOn.Blur">
-                        <MTextField @bind-Value="_formModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
-                        <MTextField @bind-Value="_formModel.Name" Placeholder="请输入名称" Outlined></MTextField>
-                        <MSelect @bind-Value="_formModel.ItemType" Outlined Items="@_itemTypesData"
-                                 ItemText="@(x => x.Text ?? "")" ItemValue="@(x => x.Id)"></MSelect>
-                        <MTextField @bind-Value="_formModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                        <MTextField @bind-Value="_formModel.RangeStart" Placeholder="请输入起始评估范围"
                                     Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
                                     Outlined></MTextField>
-                        <MTextField @bind-Value="_formModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                        <MTextField @bind-Value="_formModel.RangeEnd" Placeholder="请输入结束评估范围"
                                     Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
                                     Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Label" Placeholder="请输入评估标签" Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Conclusion" Placeholder="请输入评估结论"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Advice" Placeholder="请输入评估建议" Outlined></MTextField>
                         <MContainer>
                             <MRow>
                                 <MSpacer></MSpacer>
@@ -92,7 +91,7 @@
     </MDialog>
     <MDataTable Headers="_tableHeaders" Items="_data" ShowSelect
                 ItemKey="@(item => item.Id.ToString())" @bind-Selected="_selectedItems"
-                ResizeMode="DataTableResizeMode.Independent">
+                ResizeMode="DataTableResizeMode.Independent" Class="mt-4">
         <ItemColContent>
             @switch (context.Header.Value)
             {
@@ -102,9 +101,6 @@
                 case "index":
                     var indexNum = _data.IndexOf(context.Item) + 1;
                     <span>@indexNum</span>
-                    break;
-                case "itemType":
-                    <span>@context.Item.ItemType?.Text</span>
                     break;
                 case "action":
                     <div>
@@ -124,19 +120,18 @@
 
 @code {
 
-    private readonly List<DataTableHeader<Coffee>> _tableHeaders =
+    private readonly List<DataTableHeader<CaffeineGuide>> _tableHeaders =
     [
         new() { Text = "#", Value = "index", Width = 60 },
-        new() { Text = "品牌", Value = nameof(Coffee.Brand) },
-        new() { Text = "名称", Value = nameof(Coffee.Name) },
-        new() { Text = "类型", Value = "itemType" },
-        new() { Text = "最小咖啡因", Value = nameof(Coffee.MinCaffeine) },
-        new() { Text = "最大咖啡因", Value = nameof(Coffee.MaxCaffeine) },
+        new() { Text = "起始评估范围", Value = nameof(CaffeineGuide.RangeStart) },
+        new() { Text = "结束评估范围", Value = nameof(CaffeineGuide.RangeEnd) },
+        new() { Text = "评估标签", Value = nameof(CaffeineGuide.Label) },
+        new() { Text = "评估结论", Value = nameof(CaffeineGuide.Conclusion) },
+        new() { Text = "评估建议", Value = nameof(CaffeineGuide.Advice) },
         new() { Text = "其他操作", Value = "action", Width = 100 }
     ];
 
-    private List<Coffee> _data = [];
-    private List<ItemType> _itemTypesData = [];
+    private List<CaffeineGuide> _data = [];
     private MForm? _addDataForm;
     private MForm? _updateDataForm;
     private bool _addDataDialogVisible;
@@ -144,7 +139,7 @@
     private bool _deleteDataDialogVisible;
     private IEnumerable<string> _selectedItems = [];
     private int? _singleDeleteId;
-    private CoffeeFormModel _formModel = new();
+    private CaffeineGuideFormModel _formModel = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -166,26 +161,20 @@
         }
     }
 
-    private async Task TestFunction()
-    {
-        await PopupService.EnqueueSnackbarAsync($"{_formModel.ItemType}");
-    }
-
     private async Task GetData()
     {
-        _data = await Db.Queryable<Coffee>().Includes(x => x.ItemType).ToListAsync();
-        _itemTypesData = await Db.Queryable<ItemType>().ToListAsync();
+        _data = await Db.Queryable<CaffeineGuide>().ToListAsync();
     }
 
     private async Task AddData()
     {
-        var obj = new Coffee
+        var obj = new CaffeineGuide
         {
-            Brand = _formModel.Brand,
-            Name = _formModel.Name,
-            Type = _formModel.ItemType!.Value,
-            MinCaffeine = _formModel.MinCaffeine,
-            MaxCaffeine = _formModel.MaxCaffeine
+            RangeStart = _formModel.RangeStart,
+            RangeEnd = _formModel.RangeEnd,
+            Label = _formModel.Label,
+            Conclusion = _formModel.Conclusion,
+            Advice = _formModel.Advice
         };
         await Db.Insertable(obj).ExecuteCommandAsync();
 
@@ -205,6 +194,7 @@
                 await PopupService.EnqueueSnackbarAsync("未选择数据", AlertTypes.Warning, true, 3000);
                 return;
             }
+
             await DeleteData(ids);
             _selectedItems = [];
         }
@@ -225,16 +215,16 @@
         _deleteDataDialogVisible = true;
     }
 
-    private void HandleUpdateDialogEvent(Coffee item)
+    private void HandleUpdateDialogEvent(CaffeineGuide item)
     {
-        _formModel = new CoffeeFormModel
+        _formModel = new CaffeineGuideFormModel
         {
             Id = item.Id,
-            Brand = item.Brand,
-            Name = item.Name,
-            ItemType = item.ItemType?.Id,
-            MinCaffeine = item.MinCaffeine ?? 0,
-            MaxCaffeine = item.MaxCaffeine ?? 0
+            RangeStart = item.RangeStart ?? 0,
+            RangeEnd = item.RangeEnd ?? 0,
+            Label = item.Label,
+            Conclusion = item.Conclusion,
+            Advice = item.Advice
         };
         _updateDataDialogVisible = true;
     }
@@ -243,7 +233,7 @@
     {
         if (ids.Length != 0)
         {
-            await Db.Deleteable<Coffee>().Where(x => ids.Contains(x.Id)).ExecuteCommandAsync();
+            await Db.Deleteable<CaffeineGuide>().Where(x => ids.Contains(x.Id)).ExecuteCommandAsync();
         }
 
         _ = PopupService.EnqueueSnackbarAsync($"删除成功! 已成功删除 {ids.Length} 条数据！", AlertTypes.Success, true, 3000);
@@ -252,14 +242,14 @@
 
     private async Task UpdateData()
     {
-        var updateObj = new Coffee
+        var updateObj = new CaffeineGuide
         {
             Id = _formModel.Id,
-            Brand = _formModel.Brand,
-            Name = _formModel.Name,
-            Type = _formModel.ItemType!.Value,
-            MinCaffeine = _formModel.MinCaffeine,
-            MaxCaffeine = _formModel.MaxCaffeine
+            RangeStart = _formModel.RangeStart,
+            RangeEnd = _formModel.RangeEnd,
+            Label = _formModel.Label,
+            Conclusion = _formModel.Conclusion,
+            Advice = _formModel.Advice
         };
         await Db.Updateable(updateObj).ExecuteCommandAsync();
         ResetForm();

@@ -1,0 +1,264 @@
+﻿@page "/management/drink-data"
+@using CaffeineManager.Model
+@using CaffeineManager.Model.Form
+@inject ISqlSugarClient Db
+@inject IPopupService PopupService
+
+<div class="p-5">
+    <MDialog MaxWidth="600" @bind-Value="_updateDataDialogVisible" Persistent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>更新数据</MCardTitle>
+                <MCardText>
+                    <MForm @ref="_updateDataForm" Model="_formModel" AutoLabel OnValidSubmit="UpdateData"
+                           ValidateOn="ValidateOn.Blur">
+                        <MTextField @bind-Value="_formModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Name" Placeholder="请输入名称" Outlined></MTextField>
+                        <MSelect @bind-Value="_formModel.ItemType" Outlined Items="@_itemTypesData"
+                                 ItemText="@(x => x.Text ?? "")" ItemValue="@(x => x.Id)"></MSelect>
+                        <MTextField @bind-Value="_formModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MContainer>
+                            <MRow>
+                                <MSpacer></MSpacer>
+                                <MButton Text OnClick="ResetForm">取消</MButton>
+                                <MButton Text Type="submit">提交</MButton>
+                            </MRow>
+                        </MContainer>
+                    </MForm>
+                </MCardText>
+            </MCard>
+        </ChildContent>
+    </MDialog>
+    <MDialog MaxWidth="600" @bind-Value="_addDataDialogVisible" Persistent>
+        <ActivatorContent>
+            <MButton Class="custom-default-masa-btn" Elevation="0" @attributes="@context.Attrs">添加数据</MButton>
+        </ActivatorContent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>添加数据</MCardTitle>
+                <MCardText>
+                    <MForm @ref="_addDataForm" Model="_formModel" AutoLabel OnValidSubmit="AddData"
+                           ValidateOn="ValidateOn.Blur">
+                        <MTextField @bind-Value="_formModel.Brand" Placeholder="请输入品牌" Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.Name" Placeholder="请输入名称" Outlined></MTextField>
+                        <MSelect @bind-Value="_formModel.ItemType" Outlined Items="@_itemTypesData"
+                                 ItemText="@(x => x.Text ?? "")" ItemValue="@(x => x.Id)"></MSelect>
+                        <MTextField @bind-Value="_formModel.MinCaffeine" Placeholder="请输入最小咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MTextField @bind-Value="_formModel.MaxCaffeine" Placeholder="请输入最大咖啡因"
+                                    Type="number" NumberProps="@(prop => { prop.Step = 0.01m; })"
+                                    Outlined></MTextField>
+                        <MContainer>
+                            <MRow>
+                                <MSpacer></MSpacer>
+                                <MButton Text OnClick="ResetForm">取消</MButton>
+                                <MButton Text Type="submit">提交</MButton>
+                            </MRow>
+                        </MContainer>
+                    </MForm>
+                </MCardText>
+            </MCard>
+        </ChildContent>
+    </MDialog>
+    <MDialog MaxWidth="300" @bind-Value="_deleteDataDialogVisible" Persistent>
+        <ActivatorContent>
+            <MButton Class="custom-default-masa-btn" Elevation="0" @attributes="@context.Attrs">删除数据</MButton>
+        </ActivatorContent>
+        <ChildContent>
+            <MCard>
+                <MCardTitle>确认删除</MCardTitle>
+                <MCardText>
+                    <div>您确定要删除数据吗？</div>
+                </MCardText>
+                <MCardActions>
+                    <MSpacer></MSpacer>
+                    <MButton Text OnClick="@(() =>
+                                           {
+                                               _deleteDataDialogVisible = false;
+                                               _singleDeleteId = null;
+                                           })">取消
+                    </MButton>
+                    <MButton Text OnClick="HandleDeleteDialogConfirm">确认</MButton>
+                </MCardActions>
+            </MCard>
+        </ChildContent>
+    </MDialog>
+    <MDataTable Headers="_tableHeaders" Items="_data" ShowSelect
+                ItemKey="@(item => item.Id.ToString())" @bind-Selected="_selectedItems"
+                ResizeMode="DataTableResizeMode.Independent" Class="mt-4">
+        <ItemColContent>
+            @switch (context.Header.Value)
+            {
+                default:
+                    @context.Value
+                    break;
+                case "index":
+                    var indexNum = _data.IndexOf(context.Item) + 1;
+                    <span>@indexNum</span>
+                    break;
+                case "itemType":
+                    <span>@context.Item.ItemType?.Text</span>
+                    break;
+                case "action":
+                    <div>
+                        <MIcon Class="cursor-pointer" OnClick="@(() =>
+                                                                   HandleSingleDeleteDialogEvent(context.Item.Id))">
+                            mdi-delete
+                        </MIcon>
+                        <MIcon Class="cursor-pointer" OnClick="@(() => HandleUpdateDialogEvent(context.Item))">
+                            mdi-pencil
+                        </MIcon>
+                    </div>
+                    break;
+            }
+        </ItemColContent>
+    </MDataTable>
+</div>
+
+@code {
+
+    private readonly List<DataTableHeader<CaffeineData>> _tableHeaders =
+    [
+        new() { Text = "#", Value = "index", Width = 60 },
+        new() { Text = "品牌", Value = nameof(CaffeineData.Brand) },
+        new() { Text = "名称", Value = nameof(CaffeineData.Name) },
+        new() { Text = "类型", Value = "itemType" },
+        new() { Text = "最小咖啡因", Value = nameof(CaffeineData.MinCaffeine) },
+        new() { Text = "最大咖啡因", Value = nameof(CaffeineData.MaxCaffeine) },
+        new() { Text = "其他操作", Value = "action", Width = 100 }
+    ];
+
+    private List<CaffeineData> _data = [];
+    private List<ItemType> _itemTypesData = [];
+    private MForm? _addDataForm;
+    private MForm? _updateDataForm;
+    private bool _addDataDialogVisible;
+    private bool _updateDataDialogVisible;
+    private bool _deleteDataDialogVisible;
+    private IEnumerable<string> _selectedItems = [];
+    private int? _singleDeleteId;
+    private CoffeeFormModel _formModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetData();
+    }
+
+    private void ResetForm()
+    {
+        _addDataForm?.Reset();
+        _updateDataForm?.Reset();
+        if (_addDataDialogVisible)
+        {
+            _addDataDialogVisible = false;
+        }
+
+        if (_updateDataDialogVisible)
+        {
+            _updateDataDialogVisible = false;
+        }
+    }
+
+    private async Task GetData()
+    {
+        _data = await Db.Queryable<CaffeineData>().Includes(x => x.ItemType).ToListAsync();
+        _itemTypesData = await Db.Queryable<ItemType>().ToListAsync();
+    }
+
+    private async Task AddData()
+    {
+        var obj = new CaffeineData
+        {
+            Brand = _formModel.Brand,
+            Name = _formModel.Name,
+            Type = _formModel.ItemType!.Value,
+            MinCaffeine = _formModel.MinCaffeine,
+            MaxCaffeine = _formModel.MaxCaffeine
+        };
+        await Db.Insertable(obj).ExecuteCommandAsync();
+
+        ResetForm();
+        _ = PopupService.EnqueueSnackbarAsync("添加成功!", AlertTypes.Success, true, 3000);
+        await GetData();
+    }
+
+    private async Task HandleDeleteDialogConfirm()
+    {
+        if (_singleDeleteId == null)
+        {
+            var ids = _selectedItems.Select(int.Parse).ToArray();
+            _deleteDataDialogVisible = false;
+            if (ids.Length == 0)
+            {
+                await PopupService.EnqueueSnackbarAsync("未选择数据", AlertTypes.Warning, true, 3000);
+                return;
+            }
+            await DeleteData(ids);
+            _selectedItems = [];
+        }
+        else
+        {
+            var list = _selectedItems.ToList();
+            list.RemoveAll(x => x == _singleDeleteId.Value.ToString());
+            _selectedItems = list;
+            await DeleteData([_singleDeleteId.Value]);
+            _deleteDataDialogVisible = false;
+            _singleDeleteId = null;
+        }
+    }
+
+    private void HandleSingleDeleteDialogEvent(int id)
+    {
+        _singleDeleteId = id;
+        _deleteDataDialogVisible = true;
+    }
+
+    private void HandleUpdateDialogEvent(CaffeineData item)
+    {
+        _formModel = new CoffeeFormModel
+        {
+            Id = item.Id,
+            Brand = item.Brand,
+            Name = item.Name,
+            ItemType = item.ItemType?.Id,
+            MinCaffeine = item.MinCaffeine ?? 0,
+            MaxCaffeine = item.MaxCaffeine ?? 0
+        };
+        _updateDataDialogVisible = true;
+    }
+
+    private async Task DeleteData(int[] ids)
+    {
+        if (ids.Length != 0)
+        {
+            await Db.Deleteable<CaffeineData>().Where(x => ids.Contains(x.Id)).ExecuteCommandAsync();
+        }
+
+        _ = PopupService.EnqueueSnackbarAsync($"删除成功! 已成功删除 {ids.Length} 条数据！", AlertTypes.Success, true, 3000);
+        await GetData();
+    }
+
+    private async Task UpdateData()
+    {
+        var updateObj = new CaffeineData
+        {
+            Id = _formModel.Id,
+            Brand = _formModel.Brand,
+            Name = _formModel.Name,
+            Type = _formModel.ItemType!.Value,
+            MinCaffeine = _formModel.MinCaffeine,
+            MaxCaffeine = _formModel.MaxCaffeine
+        };
+        await Db.Updateable(updateObj).ExecuteCommandAsync();
+        ResetForm();
+        await GetData();
+        await PopupService.EnqueueSnackbarAsync("数据更新成功！", AlertTypes.Success, true, 3000);
+    }
+
+}

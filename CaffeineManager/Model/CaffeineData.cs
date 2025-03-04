@@ -2,8 +2,8 @@
 
 namespace CaffeineManager.Model;
 
-[SugarTable("coffee")]
-public class Coffee
+[SugarTable("caffeine_data")]
+public class CaffeineData
 {
     [SugarColumn(IsPrimaryKey = true, IsIdentity = true)]
     public int Id { get; set; }

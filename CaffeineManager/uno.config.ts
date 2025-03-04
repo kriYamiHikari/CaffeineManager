@@ -2,7 +2,7 @@ import {defineConfig, presetWind3} from "unocss";
 
 export default defineConfig({
     content: {
-        filesystem: ["**/*.{html,js,ts,jsx,tsx,cs,razor,cshtml}"]
+        filesystem: ["**/*.{html,razor,cshtml}"]
     },
     presets: [
         presetWind3({
